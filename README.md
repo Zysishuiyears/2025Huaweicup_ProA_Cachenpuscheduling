@@ -5,6 +5,11 @@
 **Cache-aware scheduling, memory allocation, spill selection, and pipeline compression on DAG-structured compute graphs for SIMD/NPU execution.**
 
 <p>
+  <a href="README.md"><b>English</b></a> |
+  <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+<p>
   <a href="https://github.com/Zysishuiyears/2025Huaweicup_ProA_Cachenpuscheduling"><img src="https://img.shields.io/badge/GitHub-Repository-black" alt="GitHub repository"></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
@@ -25,9 +30,9 @@
 
 ---
 
-本仓库整理自 2025 年“华为杯”中国研究生数学建模竞赛 A 题项目。它不是原始提交包的简单解压，而是将赛后归档材料重构为一个可运行、可追溯、便于继续研究的 lightweight research artifact。
+This repository is reconstructed from a 2025 Huawei Cup graduate mathematical modeling competition project. It is not a raw dump of the original submission package; it reorganizes the post-competition archive into a runnable, traceable, and maintainable lightweight research artifact.
 
-This repository contains a cleaned research artifact distilled from a competition project, including a heuristic scheduler, a spill-aware memory allocator, and an ASAP-style pipeline compression stage.
+The artifact includes a heuristic scheduler, a spill-aware memory allocator, and an ASAP-style pipeline compression stage for fine-grained compute graphs on SIMD/NPU-like architectures.
 
 ## News
 
@@ -47,7 +52,7 @@ We study a DAG scheduling problem for fine-grained SIMD/NPU compute graphs. Each
 
 ## Highlights
 
-- Cleaned project layout with separated `src/`, `scripts/`, `data/`, `outputs/`, `docs/`, `figures/`, and `archive/`.
+- Cleaned project layout with separated `src/`, `scripts/`, `data/`, `outputs/`, `docs/`, `figures`, and `archive`.
 - Official six-case CSV inputs preserved under `data/raw/csv/`.
 - Final competition submission outputs preserved under `outputs/submission/` as the canonical baseline.
 - Current runnable outputs are written to `outputs/reconstructed/` and are ignored by Git.
