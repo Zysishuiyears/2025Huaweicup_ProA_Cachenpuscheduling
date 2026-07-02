@@ -32,9 +32,11 @@
 
 This repository studies cache-aware scheduling, memory allocation, spill selection, and pipeline compression for DAG-structured compute graphs on SIMD/NPU-style accelerators.
 
-The project grew out of a 2025 Huawei Cup graduate mathematical modeling competition project. The abstraction is also relevant to LLM inference runtime and compiler systems: operator DAG scheduling, cache residency, memory pressure, and spill/recompute tradeoffs are central concerns when mapping large model workloads to constrained accelerator memory hierarchies. The current experiments still use the six official SIMD/NPU graph cases from the contest; this repository does not claim to benchmark production LLM inference engines.
+The project grew out of a 2025 Huawei Cup graduate mathematical modeling competition project, but the abstraction is close to problems encountered in LLM inference runtime and compiler systems. Modern inference workloads are lowered into dependent operator graphs: attention blocks, GEMM-heavy projections, fused elementwise kernels, and data-movement kernels must be placed on a memory hierarchy with limited on-chip capacity. The scheduler therefore has to balance operator readiness, cache residency, DMA traffic, and spill/recompute-style tradeoffs instead of only minimizing a scalar runtime.
 
-The implementation contains a heuristic scheduler, a spill-aware memory allocator, and an ASAP-style pipeline compression stage for fine-grained compute graphs.
+The current experiments use the six official SIMD/NPU graph cases from the contest as reproducible proxy workloads. This repository does not claim to benchmark production LLM inference engines; it provides a compact codebase for studying the same class of scheduling and memory-pressure decisions on public graph instances.
+
+The implementation contains a cache-pressure greedy scheduler, a spill-aware memory allocator, and an ASAP-style pipeline compression stage for fine-grained compute graphs.
 
 ## News
 
@@ -46,7 +48,7 @@ The implementation contains a heuristic scheduler, a spill-aware memory allocato
 
 We study a DAG scheduling problem for fine-grained SIMD/NPU compute graphs. Each graph contains operation nodes and cache-management nodes. The implementation produces a topological execution sequence, assigns contiguous cache addresses, decides SPILL operations when cache capacity is insufficient, and estimates pipeline compression under execution-unit constraints.
 
-From an LLM systems perspective, this is a compact proxy for several runtime/compiler problems: scheduling dependent operators, controlling cache residency, handling limited on-chip memory, and deciding when data should be spilled, rematerialized, or shifted earlier in the pipeline.
+From an LLM systems perspective, this is a compact proxy for runtime/compiler decisions that affect prefill and decode throughput: when to execute a ready operator, which intermediate buffers should stay resident in fast memory, when a buffer should be spilled, and how much pipeline slack can be removed without breaking dependencies or execution-unit constraints.
 
 | Stage | Goal | Main output |
 | --- | --- | --- |
@@ -56,11 +58,11 @@ From an LLM systems perspective, this is a compact proxy for several runtime/com
 
 ## Highlights
 
-- Cleaned project layout with separated `scripts/core/`, `scripts/runners/`, `data/`, `outputs/`, `docs/`, `figures`, and `archive`.
-- Official six-case CSV inputs preserved under `data/raw/csv/`.
-- Unified CLI entrypoints for all three problems and submission-package export.
-- Final competition submission outputs are preserved under `outputs/submission/` as the canonical baseline, while regenerated outputs are kept separate.
-- Competition-style attachment export is available through `scripts/runners/export_submission.py` and `scripts/runners/run_submission.py`.
+- Cache-pressure-aware topological scheduling for DAG compute graphs with explicit L0A/L0B/L0C constraints.
+- Contiguous multi-pool memory allocation over L1, UB, and L0 buffers, with SPILL victim selection when fast memory is insufficient.
+- Three workload families covering attention-like, GEMM-heavy, and convolution/data-movement-heavy execution patterns.
+- Competition-style outputs for schedule, memory placement, and spill logs, with canonical submitted results separated from regenerated outputs.
+- Unified CLI entrypoints and smoke tests for the three modeling stages and submission-package export.
 - `archive/legacy_*` keeps original contest-time scripts, historical outputs, and intermediate versions for reference.
 
 ## Installation
@@ -211,6 +213,26 @@ Current smoke tests verify:
 | `Conv_Case0` | 2,580 | 3,869 |
 | `Conv_Case1` | 36,086 | 85,653 |
 
+### Workloads and Data Schema
+
+Each official case is stored as `{Case}_Nodes.csv` and `{Case}_Edges.csv`. The node table describes both computation and cache-management events:
+
+| Field | Meaning |
+| --- | --- |
+| `Id` | Node identifier in the compute DAG |
+| `Op` | Operation type, such as `ALLOC`, `FREE`, `MATMUL`, `MUL`, `EXP`, `SUB`, `CONV`, `MOVE`, `COPY_IN`, `COPY_OUT` |
+| `BufId`, `Size`, `Type` | Buffer identity, allocation size, and cache pool such as `L1`, `UB`, `L0A`, `L0B`, `L0C` |
+| `Pipe`, `Cycles` | Execution unit and estimated latency |
+| `Bufs` | Buffers consumed or produced by an operation node |
+
+The workload names correspond to different accelerator execution patterns:
+
+- `FlashAttention`: attention-block style graphs with `MATMUL`, softmax-like vector operations (`MUL`, `SUB`, `EXP`), and frequent UB/L0 interaction. This is the closest case family to LLM attention, where long-sequence execution stresses intermediate residency and data movement.
+- `Matmul`: regular GEMM-heavy graphs resembling dense projections, QKV projection, and FFN layers. The graphs are structurally regular but large, making L0 tiling and CUBE pipeline pressure visible.
+- `Conv`: convolution-style graphs with dense `MOVE`, `COPY_IN`, and `CONV` interaction. These cases provide a contrast workload where memory movement and compute pipeline coordination dominate.
+
+`Pipe` values expose the hardware execution structure: `CUBE` is used for matrix/convolution compute, `VECTOR` for elementwise and softmax-like operators, `MTE*` for memory transfer, and `FIXP` for auxiliary format or fixed-function work.
+
 ## Results
 
 ### Canonical Output Inventory
@@ -249,15 +271,45 @@ flowchart LR
 
 ### Problem 1
 
-The scheduler prioritizes nodes by cache-residency pressure: `FREE` nodes reduce UB/L1 pressure, ordinary compute and data-movement nodes are neutral, and `ALLOC` nodes increase pressure. L0A/L0B/L0C live allocations are tracked to avoid violating L0 constraints when feasible alternatives exist.
+The scheduler maintains a ready set of topologically available nodes and ranks them by signed cache pressure:
+
+```text
+pressure(v) =
+  +Size(v), if v is UB/L1 ALLOC
+  -Size(v), if v is UB/L1 FREE
+   0,       otherwise
+```
+
+At each step it selects the feasible ready node with the smallest pressure, so `FREE` nodes tend to release fast memory early while large `ALLOC` nodes are delayed when possible. L0A/L0B/L0C live allocations are tracked separately; a candidate that would create a second live buffer in the same L0 pool is skipped when another ready node is available.
 
 ### Problem 2
 
-Each cache pool maintains used intervals and free intervals. Best-fit allocation is used for contiguous placement. If UB/L1 allocation fails, a WCB-style victim score considers buffer size, remaining lifetime, and copy-in relevance to decide spill candidates. This preserves the original MATCH-style virtual interval sliding idea: select low-cost victims to open a contiguous region for the current allocation.
+Each cache pool maintains used and free intervals. Contiguous placement uses Best-fit:
+
+```text
+choose block b with len(b) >= request_size
+and minimal remaining space len(b) - request_size
+```
+
+If UB/L1 allocation fails, the allocator scans candidate positions and evaluates the buffers that would overlap the requested interval. The victim score is:
+
+```text
+score(buf) = copy_coeff(buf) * w1 / size(buf)
+           + w2 / remaining_lifetime(buf)
+```
+
+The selected position is the one with the lowest total victim score. This preserves the MATCH-style virtual interval sliding idea: choose low-cost victims to open a contiguous region for the current allocation.
 
 ### Problem 3
 
-Problem 3 reuses the spill-aware schedule and memory layout, then estimates pipeline compression with a conservative ASAP-style left-slide procedure. Nodes are shifted earlier only when dependency and execution-unit constraints remain valid.
+Problem 3 reuses the spill-aware schedule and memory layout, then estimates pipeline compression with a conservative ASAP-style left-slide procedure:
+
+```text
+start(v) = max(max(end(u) for u in pred(v)), last_finish(pipe(v)))
+end(v)   = start(v) + cycles(v)
+```
+
+Nodes are shifted earlier only when dependency and execution-unit constraints remain valid, giving a conservative estimate of how much pipeline slack can be removed.
 
 ## Repository Structure
 

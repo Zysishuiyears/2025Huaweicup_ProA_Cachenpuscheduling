@@ -32,9 +32,11 @@
 
 本仓库研究 SIMD/NPU 风格加速器上的 DAG 计算图调度问题，重点包括缓存感知调度、连续内存分配、SPILL 选择和流水压缩。
 
-项目来源于 2025 年“华为杯”中国研究生数学建模竞赛 A 题。它关注的问题也与 LLM inference runtime / compiler 中的若干核心环节相似：算子 DAG 调度、cache residency、memory pressure，以及在受限片上存储层次中处理 spill / recompute tradeoff。当前实验对象仍是华为杯给定的六个 SIMD/NPU 计算图 case，本仓库不声称覆盖真实生产级 LLM 推理 benchmark。
+项目来源于 2025 年“华为杯”中国研究生数学建模竞赛 A 题，但其抽象与 LLM inference runtime / compiler 中的实际问题高度接近。现代 LLM 推理任务通常会被 lower 成带依赖关系的算子图：attention block、GEMM-heavy projection、fused elementwise kernel 和数据搬运 kernel 都需要映射到片上存储容量有限的加速器层次结构上。因此，调度器不仅要考虑算子是否 ready，还要同时权衡缓存驻留、DMA 搬运、SPILL / recompute 类 tradeoff，以及多执行单元流水利用率。
 
-当前代码包含启发式调度器、SPILL-aware 内存分配器，以及面向细粒度计算图的 ASAP-style 流水压缩阶段。
+当前实验使用华为杯给定的六个 SIMD/NPU 计算图作为公开、可复现的 proxy workload。本仓库不声称 benchmark 真实生产级 LLM 推理引擎，而是提供一个紧凑代码库，用于研究同一类调度与内存压力决策。
+
+当前代码包含缓存压力贪心调度器、SPILL-aware 内存分配器，以及面向细粒度计算图的 ASAP-style 流水压缩阶段。
 
 ## 更新
 
@@ -46,7 +48,7 @@
 
 本项目研究细粒度 SIMD/NPU 计算图上的 DAG 调度问题。每个计算图包含操作节点和缓存管理节点。当前实现需要生成拓扑执行序列、分配连续缓存地址、在缓存容量不足时决定 SPILL 操作，并在执行单元约束下估计流水压缩效果。
 
-从 LLM 系统视角看，这可以视为一个紧凑的 runtime / compiler 抽象：在依赖受限的算子 DAG 上安排执行顺序，控制缓存驻留压力，处理有限片上存储，并决定何时换出、重算或提前压缩流水。
+从 LLM 系统视角看，这可以视为一个紧凑的 runtime / compiler 抽象：在依赖受限的算子 DAG 上安排执行顺序，控制中间张量是否留在 fast memory，决定何时 SPILL，并在不破坏依赖和执行单元约束的前提下压缩流水空隙。这类决策会直接影响 prefill 和 decode 阶段的吞吐与内存占用。
 
 | 阶段 | 目标 | 主要输出 |
 | --- | --- | --- |
@@ -56,11 +58,11 @@
 
 ## 项目亮点
 
-- 清理后的工程结构，明确分离 `scripts/core/`、`scripts/runners/`、`data/`、`outputs/`、`docs/`、`figures` 和 `archive`。
-- 六个官方 CSV case 保存在 `data/raw/csv/`。
-- 三问和提交附件导出均提供统一 CLI 入口。
-- 最终竞赛提交结果保存在 `outputs/submission/`，作为 canonical baseline；重新运行结果与正式提交基线分离。
-- 通过 `scripts/runners/export_submission.py` 和 `scripts/runners/run_submission.py` 导出竞赛附件格式。
+- 面向 DAG 计算图的缓存压力感知拓扑调度，并显式处理 L0A/L0B/L0C 活跃约束。
+- 在 L1、UB、L0 等多级缓存池上进行连续地址分配，并在 fast memory 不足时选择 SPILL victim。
+- 三类 workload 覆盖 attention-like、GEMM-heavy、卷积 / 数据搬运密集型执行模式。
+- 输出包括 schedule、memory placement 和 spill log，并将正式提交基线与当前重跑结果分离，便于复现对照。
+- 三问和提交附件导出均提供统一 CLI 入口，并配有 mini case smoke tests。
 - `archive/legacy_*` 中包含比赛时的原始脚本、历史输出和中间版本，作为存档参考。
 
 ## 安装
@@ -211,6 +213,26 @@ python -m pytest -q
 | `Conv_Case0` | 2,580 | 3,869 |
 | `Conv_Case1` | 36,086 | 85,653 |
 
+### Workloads 与数据字段
+
+每个官方 case 由 `{Case}_Nodes.csv` 和 `{Case}_Edges.csv` 组成。节点表同时描述计算节点和缓存管理节点：
+
+| 字段 | 含义 |
+| --- | --- |
+| `Id` | 计算图中的节点编号 |
+| `Op` | 操作类型，例如 `ALLOC`、`FREE`、`MATMUL`、`MUL`、`EXP`、`SUB`、`CONV`、`MOVE`、`COPY_IN`、`COPY_OUT` |
+| `BufId`, `Size`, `Type` | 缓冲区编号、申请大小，以及所属缓存池，例如 `L1`、`UB`、`L0A`、`L0B`、`L0C` |
+| `Pipe`, `Cycles` | 执行单元与估计执行周期 |
+| `Bufs` | 操作节点读取或写入的缓冲区 |
+
+三类 workload 对应不同的加速器执行模式：
+
+- `FlashAttention`：对应 attention block 风格的计算图，包含 `MATMUL`、softmax-like vector ops（如 `MUL`、`SUB`、`EXP`）以及频繁的 UB/L0 交互。这一类最接近 LLM attention，在长序列场景下会放大中间结果驻留和数据搬运压力。
+- `Matmul`：对应 dense projection、QKV projection、FFN 等 GEMM-heavy 负载。图结构更规则，但规模较大，能够体现 L0 tiling 和 CUBE pipeline 压力。
+- `Conv`：对应卷积式计算图，包含大量 `MOVE`、`COPY_IN` 和 `CONV` 交错，适合作为 memory movement 与 compute pipeline 协调的对照 workload。
+
+`Pipe` 字段体现硬件执行结构：`CUBE` 用于矩阵乘 / 卷积核心计算，`VECTOR` 用于 elementwise 和 softmax-like 操作，`MTE*` 用于数据搬运，`FIXP` 用于辅助格式处理或固定功能操作。
+
 ## 结果
 
 ### Canonical 输出清单
@@ -249,15 +271,45 @@ flowchart LR
 
 ### 问题一
 
-调度器以缓存驻留压力作为节点优先级：`FREE` 节点降低 UB/L1 驻留压力，普通计算和数据搬运节点为中性，`ALLOC` 节点增加压力。调度过程中跟踪 L0A/L0B/L0C 活跃分配，在存在可行候选时避免违反 L0 约束。
+调度器维护一个拓扑 ready set，并用带符号的缓存压力给候选节点排序：
+
+```text
+pressure(v) =
+  +Size(v), 如果 v 是 UB/L1 ALLOC
+  -Size(v), 如果 v 是 UB/L1 FREE
+   0,       其他情况
+```
+
+每一步选择压力最小的可行 ready 节点，使 `FREE` 节点倾向于尽早释放 fast memory，而较大的 `ALLOC` 在可能时被延后。L0A/L0B/L0C 的活跃分配单独跟踪；如果某个候选会导致同类 L0 pool 中出现第二个 live buffer，并且还有其他 ready 节点可选，则跳过该候选。
 
 ### 问题二
 
-每个缓存池维护已用区间和空闲区间。连续地址分配采用 Best-fit。若 UB/L1 分配失败，则使用 WCB-style victim score，综合缓冲区大小、剩余生命周期和 copy-in 相关性选择 SPILL 候选。该过程保留原项目中的 MATCH 风格虚拟区间滑动思想：通过选择低代价 victim，为当前申请腾出连续区间。
+每个缓存池维护已用区间和空闲区间。连续地址分配采用 Best-fit：
+
+```text
+选择满足 len(block) >= request_size
+且剩余空间 len(block) - request_size 最小的空闲区间
+```
+
+若 UB/L1 分配失败，分配器扫描候选位置，并评估会与申请区间重叠的 live buffer。victim score 为：
+
+```text
+score(buf) = copy_coeff(buf) * w1 / size(buf)
+           + w2 / remaining_lifetime(buf)
+```
+
+最终选择总代价最低的位置。该过程保留原项目中的 MATCH 风格虚拟区间滑动思想：通过选择低代价 victim，为当前申请腾出连续区间。
 
 ### 问题三
 
-问题三复用 SPILL-aware 调度和内存布局，并使用保守的 ASAP-style 左滑过程估计流水压缩效果。只有在依赖约束和执行单元约束仍然满足时，节点才会被提前。
+问题三复用 SPILL-aware 调度和内存布局，并使用保守的 ASAP-style 左滑过程估计流水压缩效果：
+
+```text
+start(v) = max(max(end(u) for u in pred(v)), last_finish(pipe(v)))
+end(v)   = start(v) + cycles(v)
+```
+
+只有在依赖约束和执行单元约束仍然满足时，节点才会被提前，因此该结果是对流水空隙可压缩程度的保守估计。
 
 ## 仓库结构
 
