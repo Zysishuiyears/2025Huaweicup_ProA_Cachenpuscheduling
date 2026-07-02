@@ -10,7 +10,7 @@
 </p>
 
 <p>
-  <a href="https://github.com/Zysishuiyears/2025Huaweicup_ProA_Cachenpuscheduling"><img src="https://img.shields.io/badge/GitHub-Repository-black" alt="GitHub repository"></a>
+  <a href="https://github.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling"><img src="https://img.shields.io/badge/GitHub-Repository-black" alt="GitHub repository"></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
   <img src="https://img.shields.io/badge/Project-Codebase-orange" alt="Project codebase">
@@ -79,8 +79,8 @@ From an LLM systems perspective, this is a compact proxy for runtime/compiler de
 ### Setup
 
 ```bash
-git clone https://github.com/Zysishuiyears/2025Huaweicup_ProA_Cachenpuscheduling.git
-cd 2025Huaweicup_ProA_Cachenpuscheduling
+git clone https://github.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling.git
+cd 2025Huaweicup_Cachenpuscheduling
 
 python -m venv .venv
 # Windows PowerShell:
@@ -359,7 +359,7 @@ If you use this project, please cite it using the metadata in `CITATION.cff`.
   title  = {2025 Huaweicup Cache-NPU Scheduling},
   author = {{A25100550012 project contributors}},
   year   = {2026},
-  url    = {https://github.com/Zysishuiyears/2025Huaweicup_ProA_Cachenpuscheduling}
+  url    = {https://github.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling}
 }
 ```
 

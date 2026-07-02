@@ -5,6 +5,7 @@ authors:
   - name: "A25100550012 project contributors"
 year: 2026
 license: "MIT"
+repository-code: "https://github.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling"
 keywords:
   - "cache-aware scheduling"
   - "NPU"
