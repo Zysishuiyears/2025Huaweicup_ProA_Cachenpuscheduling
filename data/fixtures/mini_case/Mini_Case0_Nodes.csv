@@ -1,0 +1,6 @@
+Id,Op,BufId,Size,Type,Pipe,Cycles,Bufs
+0,ALLOC,0,16,UB,,0,"[0]"
+1,COPY_IN,0,0,,MTE2,1,"[0]"
+2,ADD,0,0,,Vector,2,"[0]"
+3,COPY_OUT,0,0,,MTE3,1,"[0]"
+4,FREE,0,16,UB,,0,"[0]"

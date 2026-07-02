@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this research artifact, please cite it using the metadata in this file."
+title: "2025-huaweicup-cache-npu-scheduling"
+authors:
+  - name: "A25100550012 project contributors"
+year: 2026
+license: "MIT"
+keywords:
+  - "cache-aware scheduling"
+  - "NPU"
+  - "SIMD"
+  - "DAG scheduling"
+  - "memory allocation"
+  - "spill selection"
