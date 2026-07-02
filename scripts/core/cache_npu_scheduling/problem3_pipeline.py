@@ -1,6 +1,6 @@
 """Problem 3 ASAP-style pipeline compression entrypoint.
 
-The final competition artifact used the same spill-aware schedule and memory
+The final competition implementation used the same spill-aware schedule and memory
 outputs for Problems 2 and 3, while computing an ASAP-style conservative
 left-slide timing comparison. This module keeps that behavior but writes into
 the `problem3` output namespace.
@@ -31,7 +31,7 @@ def run(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run Problem 3 ASAP-style pipeline compression artifact.")
+    parser = argparse.ArgumentParser(description="Run Problem 3 ASAP-style pipeline compression.")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--case", action="append", dest="cases", help="Case name. Repeat or use all.")

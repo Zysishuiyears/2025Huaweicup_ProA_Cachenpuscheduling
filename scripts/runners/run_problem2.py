@@ -4,8 +4,8 @@ import argparse
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "src"))
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "core"))
 
 from cache_npu_scheduling.cases import DEFAULT_DATA_DIR, DEFAULT_OUTPUT_DIR, parse_cases
 from cache_npu_scheduling.problem2_allocator import run

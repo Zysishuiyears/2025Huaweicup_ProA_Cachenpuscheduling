@@ -1,7 +1,7 @@
 """Problem 2 spill-aware allocator and shared scheduling machinery.
 
 The implementation is a cleaned version of the final competition script. It
-keeps the artifact-oriented heuristic structure: greedy topological scheduling,
+keeps the original heuristic structure: greedy topological scheduling,
 best-fit allocation per cache pool, WCB-style victim scoring, and explicit
 SPILL marker generation in the emitted schedule.
 """

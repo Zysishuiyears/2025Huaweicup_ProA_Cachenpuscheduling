@@ -13,7 +13,7 @@ def run_script(script: str, output_dir: Path) -> subprocess.CompletedProcess[str
     return subprocess.run(
         [
             sys.executable,
-            str(REPO_ROOT / "scripts" / script),
+            str(REPO_ROOT / "scripts" / "runners" / script),
             "--data-dir",
             str(FIXTURE_DIR),
             "--output-dir",
@@ -54,7 +54,7 @@ def test_submission_export_uses_competition_attachment_layout(tmp_path: Path) ->
     subprocess.run(
         [
             sys.executable,
-            str(REPO_ROOT / "scripts" / "export_submission.py"),
+            str(REPO_ROOT / "scripts" / "runners" / "export_submission.py"),
             "--output-dir",
             str(tmp_path),
             "--no-zip",
@@ -79,7 +79,7 @@ def test_run_submission_exports_code_generated_competition_layout(tmp_path: Path
     subprocess.run(
         [
             sys.executable,
-            str(REPO_ROOT / "scripts" / "run_submission.py"),
+            str(REPO_ROOT / "scripts" / "runners" / "run_submission.py"),
             "--data-dir",
             str(FIXTURE_DIR),
             "--run-output-dir",

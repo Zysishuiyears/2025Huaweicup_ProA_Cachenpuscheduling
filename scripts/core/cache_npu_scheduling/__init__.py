@@ -1,4 +1,4 @@
-"""Cache-aware NPU scheduling research artifact."""
+"""Cache-aware NPU scheduling implementation."""
 
 __all__ = ["__version__"]
 

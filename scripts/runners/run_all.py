@@ -4,8 +4,8 @@ import argparse
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "src"))
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "core"))
 
 from cache_npu_scheduling.cases import DEFAULT_DATA_DIR, DEFAULT_OUTPUT_DIR, parse_cases
 from cache_npu_scheduling.problem1_scheduler import run as run_problem1
@@ -14,7 +14,7 @@ from cache_npu_scheduling.problem3_pipeline import run as run_problem3
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run all reconstructed scheduling stages.")
+    parser = argparse.ArgumentParser(description="Run all scheduling stages.")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--case", action="append", dest="cases", help="Case name. Repeat or use all.")

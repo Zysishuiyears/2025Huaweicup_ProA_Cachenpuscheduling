@@ -19,7 +19,7 @@
 - `outputs/submission/problem1/`
 - `outputs/submission/problem2/`
 - `outputs/submission/problem3/`
-- `src/cache_npu_scheduling/`
+- `scripts/core/cache_npu_scheduling/`
 
 正式提交包本体移动到 `archive/submission_packages/`。
 
@@ -36,9 +36,9 @@
 
 主线代码以最终提交包中的两份 Python 源码为来源：
 
-- 问题一整理为 `src/cache_npu_scheduling/problem1_scheduler.py`
-- 问题二整理为 `src/cache_npu_scheduling/problem2_allocator.py`
-- 问题三包装为 `src/cache_npu_scheduling/problem3_pipeline.py`
+- 问题一整理为 `scripts/core/cache_npu_scheduling/problem1_scheduler.py`
+- 问题二整理为 `scripts/core/cache_npu_scheduling/problem2_allocator.py`
+- 问题三包装为 `scripts/core/cache_npu_scheduling/problem3_pipeline.py`
 
 整理时仅做工程性修改：
 
@@ -47,7 +47,9 @@
 - 将重新生成结果写入 `outputs/reconstructed/`。
 - 保留问题二和问题三的提交输出语义分离。
 
-竞赛提交规范导出由 `scripts/export_submission.py` 和 `scripts/run_submission.py` 负责。`export_submission.py` 默认导出源为 `outputs/submission/`，因此生成的 `outputs/submission_ready/A25100550012/Attachment/` 与正式提交附件的目录、文件名和文件集合对齐。`run_submission.py` 会先运行当前整理后的三问代码，再把结果导出为同样的比赛附件结构。
+竞赛提交规范导出由 `scripts/runners/export_submission.py` 和 `scripts/runners/run_submission.py` 负责。`export_submission.py` 默认导出源为 `outputs/submission/`，因此生成的 `outputs/submission_ready/A25100550012/Attachment/` 与正式提交附件的目录、文件名和文件集合对齐。`run_submission.py` 会先运行当前整理后的三问代码，再把结果导出为同样的比赛附件结构。
+
+二次整理时，原 `src/cache_npu_scheduling/` 被移动到 `scripts/core/cache_npu_scheduling/`，原顶层 `scripts/*.py` 入口被移动到 `scripts/runners/`。这样保留核心实现和运行入口的层次，同时避免顶层同时出现 `src/` 与 `scripts/` 造成理解负担。
 
 ## Legacy materials
 

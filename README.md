@@ -13,8 +13,8 @@
   <a href="https://github.com/Zysishuiyears/2025Huaweicup_ProA_Cachenpuscheduling"><img src="https://img.shields.io/badge/GitHub-Repository-black" alt="GitHub repository"></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Artifact-Reconstructed-orange" alt="Reconstructed artifact">
-  <img src="https://img.shields.io/badge/Domain-NPU%20Scheduling-purple" alt="NPU scheduling">
+  <img src="https://img.shields.io/badge/Project-Codebase-orange" alt="Project codebase">
+  <img src="https://img.shields.io/badge/Domain-LLM%2FNPU%20Scheduling-purple" alt="LLM and NPU scheduling">
 </p>
 
 <p>
@@ -30,34 +30,38 @@
 
 ---
 
-This repository is reconstructed from a 2025 Huawei Cup graduate mathematical modeling competition project. It is not a raw dump of the original submission package; it reorganizes the post-competition archive into a runnable, traceable, and maintainable lightweight research artifact.
+This repository studies cache-aware scheduling, memory allocation, spill selection, and pipeline compression for DAG-structured compute graphs on SIMD/NPU-style accelerators.
 
-The artifact includes a heuristic scheduler, a spill-aware memory allocator, and an ASAP-style pipeline compression stage for fine-grained compute graphs on SIMD/NPU-like architectures.
+The project grew out of a 2025 Huawei Cup graduate mathematical modeling competition project. The abstraction is also relevant to LLM inference runtime and compiler systems: operator DAG scheduling, cache residency, memory pressure, and spill/recompute tradeoffs are central concerns when mapping large model workloads to constrained accelerator memory hierarchies. The current experiments still use the six official SIMD/NPU graph cases from the contest; this repository does not claim to benchmark production LLM inference engines.
+
+The implementation contains a heuristic scheduler, a spill-aware memory allocator, and an ASAP-style pipeline compression stage for fine-grained compute graphs.
 
 ## News
 
-- `2026-07` Repository reconstructed into a GitHub-ready research artifact.
+- `2026-07` Repository reorganized into a GitHub-ready research codebase.
 - `2026-07` Added competition-style submission exporter with `Q1_` / `Q2_` / `Q3_` file naming.
 - `2026-07` Added mini-case smoke tests and CLI entrypoints for all three problems.
 
 ## Problem Abstraction
 
-We study a DAG scheduling problem for fine-grained SIMD/NPU compute graphs. Each graph contains operation nodes and cache-management nodes. The scheduling artifact needs to produce a topological execution sequence, assign contiguous cache addresses, decide SPILL operations when cache capacity is insufficient, and estimate pipeline compression under execution-unit constraints.
+We study a DAG scheduling problem for fine-grained SIMD/NPU compute graphs. Each graph contains operation nodes and cache-management nodes. The implementation produces a topological execution sequence, assigns contiguous cache addresses, decides SPILL operations when cache capacity is insufficient, and estimates pipeline compression under execution-unit constraints.
+
+From an LLM systems perspective, this is a compact proxy for several runtime/compiler problems: scheduling dependent operators, controlling cache residency, handling limited on-chip memory, and deciding when data should be spilled, rematerialized, or shifted earlier in the pipeline.
 
 | Stage | Goal | Main output |
 | --- | --- | --- |
 | Problem 1 | Heuristic topological scheduling under cache-residency pressure and L0 constraints | `Q1_{Case}_schedule.txt` |
 | Problem 2 | Best-fit memory allocation with spill-aware victim selection | `Q2_{Case}_schedule.txt`, `memory.txt`, `spill.txt` |
-| Problem 3 | ASAP-style conservative left-slide / pipeline compression artifact | `Q3_{Case}_schedule.txt`, `memory.txt`, `spill.txt` |
+| Problem 3 | ASAP-style conservative left-slide / pipeline compression | `Q3_{Case}_schedule.txt`, `memory.txt`, `spill.txt` |
 
 ## Highlights
 
-- Cleaned project layout with separated `src/`, `scripts/`, `data/`, `outputs/`, `docs/`, `figures`, and `archive`.
+- Cleaned project layout with separated `scripts/core/`, `scripts/runners/`, `data/`, `outputs/`, `docs/`, `figures`, and `archive`.
 - Official six-case CSV inputs preserved under `data/raw/csv/`.
-- Final competition submission outputs preserved under `outputs/submission/` as the canonical baseline.
-- Current runnable outputs are written to `outputs/reconstructed/` and are ignored by Git.
-- Competition-style attachment export is available through `scripts/export_submission.py` and `scripts/run_submission.py`.
-- Legacy scripts and historical outputs are archived instead of deleted.
+- Unified CLI entrypoints for all three problems and submission-package export.
+- Final competition submission outputs are preserved under `outputs/submission/` as the canonical baseline, while regenerated outputs are kept separate.
+- Competition-style attachment export is available through `scripts/runners/export_submission.py` and `scripts/runners/run_submission.py`.
+- `archive/legacy_*` keeps original contest-time scripts, historical outputs, and intermediate versions for reference.
 
 ## Installation
 
@@ -92,9 +96,9 @@ pip install -r requirements.txt
 Run the built-in 5-node mini case:
 
 ```bash
-python scripts/run_problem1.py --data-dir data/fixtures/mini_case --case Mini_Case0
-python scripts/run_problem2.py --data-dir data/fixtures/mini_case --case Mini_Case0
-python scripts/run_problem3.py --data-dir data/fixtures/mini_case --case Mini_Case0
+python scripts/runners/run_problem1.py --data-dir data/fixtures/mini_case --case Mini_Case0
+python scripts/runners/run_problem2.py --data-dir data/fixtures/mini_case --case Mini_Case0
+python scripts/runners/run_problem3.py --data-dir data/fixtures/mini_case --case Mini_Case0
 ```
 
 Expected output directory:
@@ -109,28 +113,22 @@ outputs/reconstructed/
 ### Run One Official Case
 
 ```bash
-python scripts/run_problem1.py --case FlashAttention_Case0
-python scripts/run_problem2.py --case FlashAttention_Case0
-python scripts/run_problem3.py --case FlashAttention_Case0
+python scripts/runners/run_problem1.py --case FlashAttention_Case0
+python scripts/runners/run_problem2.py --case FlashAttention_Case0
+python scripts/runners/run_problem3.py --case FlashAttention_Case0
 ```
 
 ### Run All Stages
 
 ```bash
-python scripts/run_all.py --case FlashAttention_Case0
+python scripts/runners/run_all.py --case FlashAttention_Case0
 ```
 
 Remove `--case FlashAttention_Case0` to run all six official cases. Full six-case reproduction can take longer on large graphs such as `Conv_Case1`.
 
-### Direct Module Execution
+### Code Organization
 
-The package modules can also be executed directly:
-
-```bash
-python src/cache_npu_scheduling/problem1_scheduler.py --case FlashAttention_Case0
-python src/cache_npu_scheduling/problem2_allocator.py --case FlashAttention_Case0
-python src/cache_npu_scheduling/problem3_pipeline.py --case FlashAttention_Case0
-```
+The maintained command-line path is `scripts/runners/`. Core implementations live under `scripts/core/cache_npu_scheduling/` and are imported by the runners.
 
 ## Submission Package
 
@@ -141,7 +139,7 @@ If the goal is to generate a competition-style final attachment tree, use the su
 This uses the preserved final competition baseline under `outputs/submission/`:
 
 ```bash
-python scripts/export_submission.py
+python scripts/runners/export_submission.py
 ```
 
 Output:
@@ -156,13 +154,13 @@ outputs/submission_ready/A25100550012_submission_ready.zip
 This first runs the cleaned code, then converts generated outputs into the same attachment layout:
 
 ```bash
-python scripts/run_submission.py
+python scripts/runners/run_submission.py
 ```
 
 For a quick structural check:
 
 ```bash
-python scripts/run_submission.py --data-dir data/fixtures/mini_case --case Mini_Case0 --package-name MiniSubmission --no-zip
+python scripts/runners/run_submission.py --data-dir data/fixtures/mini_case --case Mini_Case0 --package-name MiniSubmission --no-zip
 ```
 
 ### Attachment Layout
@@ -191,7 +189,7 @@ A25100550012/
 ### Smoke Tests
 
 ```bash
-python -m compileall src scripts
+python -m compileall scripts
 python -m pytest -q
 ```
 
@@ -255,11 +253,11 @@ The scheduler prioritizes nodes by cache-residency pressure: `FREE` nodes reduce
 
 ### Problem 2
 
-Each cache pool maintains used intervals and free intervals. Best-fit allocation is used for contiguous placement. If UB/L1 allocation fails, a WCB-style victim score considers buffer size, remaining lifetime, and copy-in relevance to decide spill candidates.
+Each cache pool maintains used intervals and free intervals. Best-fit allocation is used for contiguous placement. If UB/L1 allocation fails, a WCB-style victim score considers buffer size, remaining lifetime, and copy-in relevance to decide spill candidates. This preserves the original MATCH-style virtual interval sliding idea: select low-cost victims to open a contiguous region for the current allocation.
 
 ### Problem 3
 
-The current artifact preserves the final competition behavior: Problem 3 exports the same schedule/memory/spill style as Problem 2 while computing a conservative ASAP-style timing estimate for pipeline compression.
+Problem 3 reuses the spill-aware schedule and memory layout, then estimates pipeline compression with a conservative ASAP-style left-slide procedure. Nodes are shifted earlier only when dependency and execution-unit constraints remain valid.
 
 ## Repository Structure
 
@@ -268,8 +266,9 @@ The current artifact preserves the final competition behavior: Problem 3 exports
 ├── data/
 │   ├── raw/csv/                 # six official CSV graph cases
 │   └── fixtures/mini_case/      # small smoke-test case
-├── src/cache_npu_scheduling/    # reusable package code
-├── scripts/                     # command-line entrypoints
+├── scripts/
+│   ├── core/cache_npu_scheduling/ # core implementation
+│   └── runners/                   # command-line entrypoints
 ├── outputs/
 │   ├── submission/              # canonical final submission baseline
 │   └── reconstructed/           # regenerated outputs, ignored by Git
@@ -289,10 +288,10 @@ The current artifact preserves the final competition behavior: Problem 3 exports
 
 ## Limitations
 
-- The implementation is a heuristic artifact, not a production-grade compiler scheduler.
+- The implementation is heuristic code, not a production-grade compiler scheduler.
 - No optimality or approximation guarantee is claimed.
 - The current tests are smoke tests; they do not replace full algorithmic validation.
-- Some legacy scripts are archived for traceability but are not part of the maintained execution path.
+- `archive/legacy_*` contains original contest-time scripts and historical outputs for reference; it is not part of the maintained execution path.
 - `outputs/submission/` is the canonical competition baseline; `outputs/reconstructed/` is for current-code verification and development.
 
 ## AI-Assisted Coding Disclosure
@@ -301,7 +300,7 @@ Parts of the original competition code and this repository reconstruction were d
 
 ## Citation
 
-If you use this research artifact, please cite it using the metadata in `CITATION.cff`.
+If you use this project, please cite it using the metadata in `CITATION.cff`.
 
 ```bibtex
 @software{huaweicup_cache_npu_scheduling_2026,

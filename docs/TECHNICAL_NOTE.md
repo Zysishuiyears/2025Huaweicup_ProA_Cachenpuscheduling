@@ -4,7 +4,9 @@
 
 This project studies DAG scheduling, contiguous memory allocation, spill selection, and lightweight pipeline optimization on SIMD/NPU compute graphs.
 
-原始项目来自 2025 年“华为杯”中国研究生数学建模竞赛。当前仓库将赛后材料整理为 research artifact，便于复现核心流程、检查输出格式，并为后续算法重构保留清晰边界。
+原始项目来自 2025 年“华为杯”中国研究生数学建模竞赛。当前仓库将赛后材料整理为可运行的研究代码项目，便于复现核心流程、检查输出格式，并为后续算法重构保留清晰边界。
+
+从系统角度看，这类问题也接近 LLM inference runtime / compiler 中的若干核心任务：在依赖受限的算子 DAG 上安排执行顺序，控制 cache residency 和 memory pressure，并在有限片上存储下处理 spill / recompute tradeoff。当前实验仍基于竞赛给定的 SIMD/NPU 计算图，不声称覆盖生产级 LLM 推理 benchmark。
 
 ## 2. Problem abstraction
 
@@ -32,7 +34,7 @@ This project studies DAG scheduling, contiguous memory allocation, spill selecti
 
 ### 3.3 Problem 3: ASAP-style pipeline compression
 
-问题三在问题二的调度和内存分配基础上估计流水执行周期。当前 artifact 保留最终提交代码的保守左滑组织方式：在不打破依赖和执行单元约束的前提下，尽量把节点提前到可执行的最早位置。当前版本输出仍与正式提交保持同类格式，并在运行日志中报告压缩前后的周期估计。
+问题三在问题二的调度和内存分配基础上估计流水执行周期。当前实现保留最终提交代码的保守左滑组织方式：在不打破依赖和执行单元约束的前提下，尽量把节点提前到可执行的最早位置。当前版本输出仍与正式提交保持同类格式，并在运行日志中报告压缩前后的周期估计。
 
 ## 4. Experimental setup
 
@@ -53,15 +55,15 @@ This project studies DAG scheduling, contiguous memory allocation, spill selecti
 
 两个结果区域不混用，原因是赛后归档目录中存在多个后期脚本和中间输出版本，部分结果与最终提交附件不完全一致。将 baseline 和 reconstructed outputs 分离，可以避免后续开发误覆盖正式提交结果。
 
-需要生成竞赛规范附件时，使用 `scripts/export_submission.py`。默认导出源为 canonical baseline，生成 `Attachment/Problem1`、`Attachment/Problem2`、`Attachment/Problem3` 以及 `Q1_`、`Q2_`、`Q3_` 前缀文件名，从而与最终提交附件结构对齐。
+需要生成竞赛规范附件时，使用 `scripts/runners/export_submission.py`。默认导出源为 canonical baseline，生成 `Attachment/Problem1`、`Attachment/Problem2`、`Attachment/Problem3` 以及 `Q1_`、`Q2_`、`Q3_` 前缀文件名，从而与最终提交附件结构对齐。
 
-如果需要“先运行当前整理后的代码，再生成比赛附件结构”，使用 `scripts/run_submission.py`。该命令先写出 `outputs/reconstructed/problem1|2|3/`，再导出为同样的 `Attachment/Problem*/Q*_...txt` 提交格式。
+如果需要“先运行当前整理后的代码，再生成比赛附件结构”，使用 `scripts/runners/run_submission.py`。该命令先写出 `outputs/reconstructed/problem1|2|3/`，再导出为同样的 `Attachment/Problem*/Q*_...txt` 提交格式。
 
 ## 6. Limitations
 
 - 方法是启发式算法，没有全局最优或近似保证。
 - 实验主要覆盖竞赛提供的六个 case。
-- 当前实现以 artifact reproducibility 为主，不是生产级调度系统。
+- 当前实现以可复现和可维护为主，不是生产级调度系统。
 - 部分 legacy 代码存在版本分叉，已归档但未全部验证。
 - 测试目前以 CLI smoke test 为主，后续需要补充拓扑合法性、地址不重叠、SPILL 语义和周期估计测试。
 

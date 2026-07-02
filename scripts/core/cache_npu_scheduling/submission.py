@@ -131,16 +131,16 @@ def _copy_problem23(source_root: Path, problem: str, prefix: str, target_dir: Pa
 
 def _copy_code(target_dir: Path) -> list[Path]:
     target_dir.mkdir(parents=True, exist_ok=True)
-    src_dir = REPO_ROOT / "src" / "cache_npu_scheduling"
-    scripts_dir = REPO_ROOT / "scripts"
+    core_dir = REPO_ROOT / "scripts" / "core" / "cache_npu_scheduling"
+    runners_dir = REPO_ROOT / "scripts" / "runners"
     files = [
-        src_dir / "cases.py",
-        src_dir / "problem1_scheduler.py",
-        src_dir / "problem2_allocator.py",
-        src_dir / "problem3_pipeline.py",
-        scripts_dir / "run_problem1.py",
-        scripts_dir / "run_problem2.py",
-        scripts_dir / "run_problem3.py",
+        core_dir / "cases.py",
+        core_dir / "problem1_scheduler.py",
+        core_dir / "problem2_allocator.py",
+        core_dir / "problem3_pipeline.py",
+        runners_dir / "run_problem1.py",
+        runners_dir / "run_problem2.py",
+        runners_dir / "run_problem3.py",
     ]
     copied: list[Path] = []
     for src in files:

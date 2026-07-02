@@ -1,6 +1,6 @@
 """Problem 1 heuristic scheduler.
 
-This module keeps the competition artifact behavior intentionally simple:
+This module keeps the competition implementation intentionally simple:
 read a DAG case, produce a topological schedule, and write one node id per
 line. The heuristic follows the original project direction of reducing cache
 residency pressure while avoiding simultaneous L0 allocations.

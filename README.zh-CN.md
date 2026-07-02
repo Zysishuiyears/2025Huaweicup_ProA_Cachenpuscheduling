@@ -13,8 +13,8 @@
   <a href="https://github.com/Zysishuiyears/2025Huaweicup_ProA_Cachenpuscheduling"><img src="https://img.shields.io/badge/GitHub-Repository-black" alt="GitHub repository"></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Artifact-Reconstructed-orange" alt="Reconstructed artifact">
-  <img src="https://img.shields.io/badge/Domain-NPU%20Scheduling-purple" alt="NPU scheduling">
+  <img src="https://img.shields.io/badge/Project-Codebase-orange" alt="Project codebase">
+  <img src="https://img.shields.io/badge/Domain-LLM%2FNPU%20Scheduling-purple" alt="LLM and NPU scheduling">
 </p>
 
 <p>
@@ -30,34 +30,38 @@
 
 ---
 
-本仓库整理自 2025 年“华为杯”中国研究生数学建模竞赛 A 题项目。它不是原始提交包的简单解压，而是将赛后归档材料重构为一个可运行、可追溯、便于继续研究的 lightweight research artifact。
+本仓库研究 SIMD/NPU 风格加速器上的 DAG 计算图调度问题，重点包括缓存感知调度、连续内存分配、SPILL 选择和流水压缩。
 
-该 artifact 包含启发式调度器、SPILL-aware 内存分配器，以及面向 SIMD/NPU 细粒度计算图的 ASAP-style 流水压缩阶段。
+项目来源于 2025 年“华为杯”中国研究生数学建模竞赛 A 题。它关注的问题也与 LLM inference runtime / compiler 中的若干核心环节相似：算子 DAG 调度、cache residency、memory pressure，以及在受限片上存储层次中处理 spill / recompute tradeoff。当前实验对象仍是华为杯给定的六个 SIMD/NPU 计算图 case，本仓库不声称覆盖真实生产级 LLM 推理 benchmark。
+
+当前代码包含启发式调度器、SPILL-aware 内存分配器，以及面向细粒度计算图的 ASAP-style 流水压缩阶段。
 
 ## 更新
 
-- `2026-07` 将赛后归档目录重构为 GitHub-ready research artifact。
+- `2026-07` 将赛后归档目录整理为 GitHub-ready 研究代码仓库。
 - `2026-07` 新增竞赛提交附件导出器，支持 `Q1_` / `Q2_` / `Q3_` 文件命名。
 - `2026-07` 新增 mini case smoke tests 和三问独立 CLI 入口。
 
 ## 问题抽象
 
-本项目研究细粒度 SIMD/NPU 计算图上的 DAG 调度问题。每个计算图包含操作节点和缓存管理节点。调度 artifact 需要生成拓扑执行序列、分配连续缓存地址、在缓存容量不足时决定 SPILL 操作，并在执行单元约束下估计流水压缩效果。
+本项目研究细粒度 SIMD/NPU 计算图上的 DAG 调度问题。每个计算图包含操作节点和缓存管理节点。当前实现需要生成拓扑执行序列、分配连续缓存地址、在缓存容量不足时决定 SPILL 操作，并在执行单元约束下估计流水压缩效果。
+
+从 LLM 系统视角看，这可以视为一个紧凑的 runtime / compiler 抽象：在依赖受限的算子 DAG 上安排执行顺序，控制缓存驻留压力，处理有限片上存储，并决定何时换出、重算或提前压缩流水。
 
 | 阶段 | 目标 | 主要输出 |
 | --- | --- | --- |
 | 问题一 | 在缓存驻留压力和 L0 约束下生成启发式拓扑调度序列 | `Q1_{Case}_schedule.txt` |
 | 问题二 | 使用 Best-fit 分配地址，并进行 SPILL-aware victim 选择 | `Q2_{Case}_schedule.txt`, `memory.txt`, `spill.txt` |
-| 问题三 | ASAP-style 保守左滑 / 流水压缩 artifact | `Q3_{Case}_schedule.txt`, `memory.txt`, `spill.txt` |
+| 问题三 | ASAP-style 保守左滑 / 流水压缩 | `Q3_{Case}_schedule.txt`, `memory.txt`, `spill.txt` |
 
 ## 项目亮点
 
-- 清理后的工程结构，明确分离 `src/`、`scripts/`、`data/`、`outputs/`、`docs/`、`figures` 和 `archive`。
+- 清理后的工程结构，明确分离 `scripts/core/`、`scripts/runners/`、`data/`、`outputs/`、`docs/`、`figures` 和 `archive`。
 - 六个官方 CSV case 保存在 `data/raw/csv/`。
-- 最终竞赛提交结果保存在 `outputs/submission/`，作为 canonical baseline。
-- 当前代码重新运行结果写入 `outputs/reconstructed/`，并被 Git 忽略。
-- 通过 `scripts/export_submission.py` 和 `scripts/run_submission.py` 导出竞赛附件格式。
-- legacy 脚本和历史输出被归档保留，而不是直接删除。
+- 三问和提交附件导出均提供统一 CLI 入口。
+- 最终竞赛提交结果保存在 `outputs/submission/`，作为 canonical baseline；重新运行结果与正式提交基线分离。
+- 通过 `scripts/runners/export_submission.py` 和 `scripts/runners/run_submission.py` 导出竞赛附件格式。
+- `archive/legacy_*` 中包含比赛时的原始脚本、历史输出和中间版本，作为存档参考。
 
 ## 安装
 
@@ -92,9 +96,9 @@ pip install -r requirements.txt
 运行内置 5 节点 mini case：
 
 ```bash
-python scripts/run_problem1.py --data-dir data/fixtures/mini_case --case Mini_Case0
-python scripts/run_problem2.py --data-dir data/fixtures/mini_case --case Mini_Case0
-python scripts/run_problem3.py --data-dir data/fixtures/mini_case --case Mini_Case0
+python scripts/runners/run_problem1.py --data-dir data/fixtures/mini_case --case Mini_Case0
+python scripts/runners/run_problem2.py --data-dir data/fixtures/mini_case --case Mini_Case0
+python scripts/runners/run_problem3.py --data-dir data/fixtures/mini_case --case Mini_Case0
 ```
 
 默认输出目录：
@@ -109,28 +113,22 @@ outputs/reconstructed/
 ### 运行单个官方 Case
 
 ```bash
-python scripts/run_problem1.py --case FlashAttention_Case0
-python scripts/run_problem2.py --case FlashAttention_Case0
-python scripts/run_problem3.py --case FlashAttention_Case0
+python scripts/runners/run_problem1.py --case FlashAttention_Case0
+python scripts/runners/run_problem2.py --case FlashAttention_Case0
+python scripts/runners/run_problem3.py --case FlashAttention_Case0
 ```
 
 ### 运行完整流程
 
 ```bash
-python scripts/run_all.py --case FlashAttention_Case0
+python scripts/runners/run_all.py --case FlashAttention_Case0
 ```
 
 去掉 `--case FlashAttention_Case0` 后会运行六个官方 case。完整六 case 复现可能耗时较长，尤其是 `Conv_Case1` 等大图。
 
-### 直接运行模块
+### 代码组织
 
-包内模块也可以直接执行：
-
-```bash
-python src/cache_npu_scheduling/problem1_scheduler.py --case FlashAttention_Case0
-python src/cache_npu_scheduling/problem2_allocator.py --case FlashAttention_Case0
-python src/cache_npu_scheduling/problem3_pipeline.py --case FlashAttention_Case0
-```
+建议用户通过 `scripts/runners/` 运行项目。核心实现位于 `scripts/core/cache_npu_scheduling/`，由 runner 统一导入调用。
 
 ## 提交附件
 
@@ -141,7 +139,7 @@ python src/cache_npu_scheduling/problem3_pipeline.py --case FlashAttention_Case0
 该命令使用 `outputs/submission/` 中保留的最终提交结果：
 
 ```bash
-python scripts/export_submission.py
+python scripts/runners/export_submission.py
 ```
 
 输出：
@@ -156,13 +154,13 @@ outputs/submission_ready/A25100550012_submission_ready.zip
 该命令会先运行整理后的代码，再将生成结果转换为同样的提交附件结构：
 
 ```bash
-python scripts/run_submission.py
+python scripts/runners/run_submission.py
 ```
 
 快速检查结构：
 
 ```bash
-python scripts/run_submission.py --data-dir data/fixtures/mini_case --case Mini_Case0 --package-name MiniSubmission --no-zip
+python scripts/runners/run_submission.py --data-dir data/fixtures/mini_case --case Mini_Case0 --package-name MiniSubmission --no-zip
 ```
 
 ### 附件结构
@@ -191,7 +189,7 @@ A25100550012/
 ### Smoke Tests
 
 ```bash
-python -m compileall src scripts
+python -m compileall scripts
 python -m pytest -q
 ```
 
@@ -255,11 +253,11 @@ flowchart LR
 
 ### 问题二
 
-每个缓存池维护已用区间和空闲区间。连续地址分配采用 Best-fit。若 UB/L1 分配失败，则使用 WCB-style victim score，综合缓冲区大小、剩余生命周期和 copy-in 相关性选择 SPILL 候选。
+每个缓存池维护已用区间和空闲区间。连续地址分配采用 Best-fit。若 UB/L1 分配失败，则使用 WCB-style victim score，综合缓冲区大小、剩余生命周期和 copy-in 相关性选择 SPILL 候选。该过程保留原项目中的 MATCH 风格虚拟区间滑动思想：通过选择低代价 victim，为当前申请腾出连续区间。
 
 ### 问题三
 
-当前 artifact 保留最终提交行为：问题三导出与问题二同类的 schedule / memory / spill 文件，同时计算保守 ASAP-style 周期估计，用于描述流水压缩效果。
+问题三复用 SPILL-aware 调度和内存布局，并使用保守的 ASAP-style 左滑过程估计流水压缩效果。只有在依赖约束和执行单元约束仍然满足时，节点才会被提前。
 
 ## 仓库结构
 
@@ -268,8 +266,9 @@ flowchart LR
 ├── data/
 │   ├── raw/csv/                 # 六个官方 CSV 计算图 case
 │   └── fixtures/mini_case/      # 小型 smoke-test case
-├── src/cache_npu_scheduling/    # 可复用包代码
-├── scripts/                     # 命令行入口
+├── scripts/
+│   ├── core/cache_npu_scheduling/ # 核心实现
+│   └── runners/                   # 命令行入口
 ├── outputs/
 │   ├── submission/              # 正式提交基线
 │   └── reconstructed/           # 再生成输出，Git 忽略
@@ -289,10 +288,10 @@ flowchart LR
 
 ## 限制
 
-- 当前实现是启发式 artifact，不是生产级编译器调度器。
+- 当前实现是启发式代码，不是生产级编译器调度器。
 - 不声明全局最优性或近似比保证。
 - 当前测试是 smoke tests，不能替代完整算法验证。
-- 部分 legacy 脚本仅用于追溯，不属于维护中的执行路径。
+- `archive/legacy_*` 中包含比赛时的原始脚本和历史输出，作为存档参考，不属于维护中的执行路径。
 - `outputs/submission/` 是竞赛提交基线；`outputs/reconstructed/` 用于当前代码验证和后续开发。
 
 ## AI 辅助声明
@@ -301,7 +300,7 @@ Parts of the original competition code and this repository reconstruction were d
 
 ## 引用
 
-如果使用本 research artifact，请参考 `CITATION.cff`。
+如果使用本项目，请参考 `CITATION.cff`。
 
 ```bibtex
 @software{huaweicup_cache_npu_scheduling_2026,
